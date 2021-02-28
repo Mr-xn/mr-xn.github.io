@@ -1,2 +1,2 @@
-# mr-xn.gitHub.io
+# mr-xn.github.io
 github page
