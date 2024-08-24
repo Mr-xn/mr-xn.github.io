@@ -3,9 +3,23 @@
 <head>
 <meta charset="utf-8"> 
 <title>Github Pages</title> 
+     <style>
+        .image-container {
+            display: flex;        /* 使用 flexbox 布局 */
+            justify-content: center;  /* 水平方向居中 */
+            align-items: center;   /* 垂直方向居中 */
+            width: 100%;           /* 容器宽度占满屏幕 */
+            height: 100vh;         /* 容器高度占满视窗高度 */
+        }
+        .responsive-img {
+            max-width: 100%;       /* 图片最大宽度不超过容器宽度 */
+            max-height: 100%;      /* 图片最大高度不超过容器高度 */
+            height: auto;          /* 根据宽度自动调整高度 */
+        }
+    </style>
 </head>
 <body>
  <h1>Blog: https://mrxn.net </h1>
- <img src="TOP10.png">
+ <img src="TOP10.png" class="responsive-img">
 </body>
 </html>
