@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>文本去除工具</title>
+<style>
+body {
+  font-family: sans-serif;
+}
+textarea {
+  width: 300px;
+  height: 200px;
+  margin: 10px;
+}
+button {
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+button:hover {
+  background-color: #3e8e41;
+}
+.container {
+  display: flex;
+}
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+</style>
+</head>
+<body>
+
+<h1>文本去除工具</h1>
+
+<div class="container">
+  <div class="column">
+    <h2>文本列 A</h2>
+    <textarea id="textA" placeholder="在此输入文本列 A，每行一个成员"></textarea>
+  </div>
+  <div class="column">
+    <h2>文本列 B (要去除的)</h2>
+    <textarea id="textB" placeholder="在此输入文本列 B，每行一个成员"></textarea>
+  </div>
+  <div class="column">
+    <h2>文本列 C (结果)</h2>
+    <textarea id="textC" readonly placeholder="结果将显示在此处"></textarea>
+  </div>
+</div>
+
+<button onclick="processText()">处理文本</button>
+
+<script>
+function processText() {
+  const textA = document.getElementById("textA").value;
+  const textB = document.getElementById("textB").value;
+  const textC = document.getElementById("textC");
+
+  const arrayA = textA.split("\n").map(item => item.trim()).filter(item => item !== ""); // 分割成数组并去除空行
+  const arrayB = textB.split("\n").map(item => item.trim()).filter(item => item !== ""); // 分割成数组并去除空行
+
+  const resultArray = arrayA.filter(item => !arrayB.includes(item)); // 过滤掉 arrayB 中的元素
+
+  textC.value = resultArray.join("\n"); // 将结果数组连接成字符串
+}
+</script>
+
+</body>
+</html>
