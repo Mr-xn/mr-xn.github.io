@@ -241,21 +241,26 @@
             }
         }
 
-        // 新增：压缩输出的函数
+        // 压缩输出的函数
         function compressOutput() {
             const content = jsonOutput.value;
             if (!content.trim()) {
                 showStatus('输出为空，无需压缩。', 'info');
-                return;
+                return
             }
             try {
-                const jsonObj = JSON.parse(content);
-                // 使用不带格式化参数的 stringify 方法进行压缩
-                jsonOutput.value = JSON.stringify(jsonObj);
-                showStatus('输出结果已成功压缩。', 'success');
+                const compressedString = content.replace(/"(?:\\.|[^"\\])*"|\s+/g, (match) => {
+                    if (match.startsWith('"')) {
+                        return match
+                    }
+                    return ''
+                });
+                JSON.parse(compressedString);
+                jsonOutput.value = compressedString;
+                showStatus('输出结果已成功压缩。', 'success')
             } catch (e) {
-                showStatus('输出内容不是有效的JSON格式，无法压缩。', 'error');
-                console.error('Compression failed:', e);
+                showStatus('输出内容不是有效的JSON格式，无法安全压缩。', 'error');
+                console.error('Compression failed due to invalid JSON:', e)
             }
         }
 
