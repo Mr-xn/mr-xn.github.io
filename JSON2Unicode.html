@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>JSON Unicode 转换器 | 在线JSON与Unicode互转工具</title>
+    <meta name="description" content="一款功能强大的在线JSON Unicode转换工具。支持中文字符与Unicode编码（\uXXXX格式）之间的相互转换，并可对结果进行压缩。您可以对JSON的键(Key)、值(Value)或两者同时进行全局或指定转换。">
+    <meta name="keywords" content="JSON, Unicode, 转换, 编码, 解码, 压缩JSON, JSON转Unicode, Unicode转JSON, 在线工具, 开发者工具, 中文Unicode编码, JSON格式化, Key, Value">
+    <meta name="author" content="AI Assistant Generated">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* CSS样式未做修改，保持原样 */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f4f7f9; color: #333; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: flex-start; }
+        .container { width: 90%; max-width: 1200px; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); }
+        h1 { text-align: center; color: #2c3e50; margin-top: 0; border-bottom: 2px solid #e0e0e0; padding-bottom: 15px; }
+        .main-content { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+        .io-panel { display: flex; flex-direction: column; }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 10px; }
+        .panel-header .title { margin: 0; font-weight: 600; flex-grow: 1; }
+        textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; box-sizing: border-box; flex-grow: 1; resize: vertical; min-height: 350px; }
+        .controls { background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #e9ecef; margin-top: 15px; }
+        .control-group { margin-bottom: 15px; }
+        .control-group-inline { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+        label { display: block; font-weight: 600; }
+        .radio-group label { display: inline-flex; align-items: center; margin-right: 15px; font-weight: normal; cursor: pointer; }
+        .radio-group input { margin-right: 5px; }
+        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; box-sizing: border-box; }
+        input[type="text"]:disabled { background-color: #e9ecef; cursor: not-allowed; }
+        .checkbox-group { display: flex; align-items: center; }
+        .checkbox-group input { width: auto; margin-right: 8px; }
+        button, .action-btn { padding: 12px 15px; font-size: 16px; font-weight: 600; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.3s, transform 0.1s; text-align: center; width: 100%; }
+        .action-btn-small { width: auto; padding: 8px 12px; font-size: 14px; }
+        button:disabled, .action-btn:disabled { background-color: #6c757d; cursor: wait; color: #fff; }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-primary:hover:not(:disabled) { background-color: #0056b3; }
+        .btn-secondary { background-color: #6c757d; color: white; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        #status { margin-top: 15px; padding: 10px; border-radius: 5px; text-align: center; font-weight: 500; display: none; }
+        .status-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; display: block; }
+        .status-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; display: block; }
+        .status-info { background-color: #cce5ff; color: #004085; border: 1px solid #b8daff; display: block; }
+        #progress-container { display: none; margin-top: 15px; background-color: #e9ecef; border-radius: 5px; overflow: hidden; position: relative; height: 24px; line-height: 24px; text-align: center; }
+        #progress-bar { width: 0%; height: 100%; background-color: #28a745; transition: width 0.2s ease-in-out; }
+        #progress-text { position: absolute; top: 0; left: 0; width: 100%; color: #333; font-weight: 600; }
+        #file-input { display: none; }
+        .site-footer{width:100%;text-align:center;margin-top:30px;padding:15px 0;font-size:14px;color:#6c757d;}
+        .site-footer a{color:#007bff;text-decoration:none;font-weight:500}
+        .site-footer a:hover{text-decoration:underline}
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>JSON Unicode 转换器</h1>
+        <div class="main-content">
+            <div class="io-panel">
+                <div class="panel-header">
+                    <label class="title">输入 JSON</label>
+                    <button class="action-btn-small btn-danger" onclick="clearInput()">清空</button>
+                    <label for="file-input" class="action-btn-small btn-secondary">从文件加载</label>
+                    <input type="file" id="file-input" accept=".json,application/json" onchange="handleFileSelect(event)">
+                </div>
+                <textarea id="json-input" placeholder="在此处粘贴您的 JSON 字符串，或从文件加载..." oninput="saveState()"></textarea>
+            </div>
+            <div class="io-panel">
+                <div class="panel-header">
+                    <label class="title">输出结果</label>
+                    <button class="action-btn-small btn-secondary" onclick="copyOutput()" id="copy-btn">复制</button>
+                    <!-- 新增：压缩按钮 -->
+                    <button class="action-btn-small btn-secondary" onclick="compressOutput()" id="compress-btn">压缩</button>
+                    <button class="action-btn-small btn-danger" onclick="clearOutput()">清空</button>
+                    <button class="action-btn-small btn-secondary" onclick="downloadResult()">下载</button>
+                </div>
+                <textarea id="json-output" readonly placeholder="转换结果将显示在此处..."></textarea>
+            </div>
+        </div>
+
+        <div class="controls">
+            <!-- 控件部分保持不变 -->
+            <div class="control-group-inline">
+                <div class="control-group radio-group">
+                    <label>操作模式:</label>
+                    <label><input type="radio" name="transform_mode" value="encode" onchange="saveState()" checked> 编码</label>
+                    <label><input type="radio" name="transform_mode" value="decode" onchange="saveState()"> 解码</label>
+                </div>
+                <div class="control-group radio-group">
+                    <label>操作目标:</label>
+                    <label><input type="radio" name="target_type" value="value" onchange="saveState()" checked> Value</label>
+                    <label><input type="radio" name="target_type" value="key" onchange="saveState()"> Key</label>
+                    <label><input type="radio" name="target_type" value="both" onchange="saveState()"> Key & Value</label>
+                </div>
+            </div>
+            <div class="control-group radio-group">
+                <label>应用范围:</label>
+                <label><input type="radio" name="scope" value="global" onchange="updateScopeUI(); saveState();" checked> 全局模式</label>
+                <label><input type="radio" name="scope" value="specific" onchange="updateScopeUI(); saveState();"> 指定模式</label>
+            </div>
+            <div class="control-group">
+                <label for="target-keys">指定要操作的 Key (多个用英文逗号 , 分隔)</label>
+                <input type="text" id="target-keys" placeholder="例如: name,notes" oninput="saveState()">
+            </div>
+            <div class="control-group checkbox-group">
+                <input type="checkbox" id="remove-escapes" onchange="saveState()">
+                <label for="remove-escapes" style="margin-bottom: 0;">编码前，尝试将值作为JSON解析并去除转义</label>
+            </div>
+            <button class="btn-primary" onclick="processJSON()">执行转换</button>
+        </div>
+        <div id="progress-container">
+            <div id="progress-bar"></div>
+            <span id="progress-text">0%</span>
+        </div>
+        <div id="status"></div>
+    <footer class="site-footer"><p>版权所有&copy;<span id="copyright-year"></span>|作者: Mrxn|<a href="https://mrxn.net/"target="_blank"rel="noopener">https://mr-xn.github.io/JSON2Unicode.html</a>|版本:1.2.0</p></footer>
+    </div>
+
+    <script>
+        // === 变量定义部分，保持不变 ===
+        const jsonInput = document.getElementById('json-input');
+        const jsonOutput = document.getElementById('json-output');
+        const targetKeysInput = document.getElementById('target-keys');
+        const statusDiv = document.getElementById('status');
+        const removeEscapesCheckbox = document.getElementById('remove-escapes');
+        const fileInput = document.getElementById('file-input');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const copyBtn = document.getElementById('copy-btn');
+        
+        // === 状态保持功能，保持不变 ===
+        const STATE_KEY = 'jsonUnicodeConverterState';
+        function saveState() {
+            const state = {
+                jsonInput: jsonInput.value,
+                transformMode: document.querySelector('input[name="transform_mode"]:checked').value,
+                targetType: document.querySelector('input[name="target_type"]:checked').value,
+                scope: document.querySelector('input[name="scope"]:checked').value,
+                targetKeys: targetKeysInput.value,
+                removeEscapes: removeEscapesCheckbox.checked
+            };
+            try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch (e) { console.error("无法保存状态到 localStorage:", e); }
+        }
+        function loadState() {
+            try {
+                const savedState = localStorage.getItem(STATE_KEY);
+                if (savedState) {
+                    const state = JSON.parse(savedState);
+                    jsonInput.value = state.jsonInput || '';
+                    if (state.transformMode) document.querySelector(`input[name="transform_mode"][value="${state.transformMode}"]`).checked = true;
+                    if (state.targetType) document.querySelector(`input[name="target_type"][value="${state.targetType}"]`).checked = true;
+                    if (state.scope) document.querySelector(`input[name="scope"][value="${state.scope}"]`).checked = true;
+                    targetKeysInput.value = state.targetKeys || '';
+                    removeEscapesCheckbox.checked = state.removeEscapes || false;
+                }
+            } catch (e) {
+                console.error("无法从 localStorage 加载状态:", e);
+                localStorage.removeItem(STATE_KEY);
+            }
+            updateScopeUI();
+        }
+        document.addEventListener('DOMContentLoaded', () => { loadState(); document.getElementById('copyright-year').textContent = new Date().getFullYear();});
+
+        // === 核心转换逻辑，保持不变 ===
+        function toUnicode(str) { return str.split('').map(c => '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4)).join(''); }
+        function fromUnicode(str) { try { return JSON.parse('"' + str.replace(/"/g, '\\"') + '"'); } catch (e) { return str; } }
+        function countKeys(obj) { if (obj === null || typeof obj !== 'object') return 0; let count = 0; if (Array.isArray(obj)) { for (const item of obj) { count += countKeys(item); } } else { const keys = Object.keys(obj); count += keys.length; for (const key of keys) { count += countKeys(obj[key]); } } return count; }
+        async function traverseAndConvert(obj, options) {
+            const { targetKeys, mode, targetType, shouldRemoveEscapes, isGlobalMode, progress } = options;
+            const transformFunc = mode === 'encode' ? toUnicode : fromUnicode;
+            if (Array.isArray(obj)) { const newArr = []; for (const item of obj) { newArr.push(await traverseAndConvert(item, options)); } return newArr; }
+            if (obj !== null && typeof obj === 'object') {
+                const newObj = {};
+                const keys = Object.keys(obj);
+                for (const key of keys) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                    progress.processed++;
+                    updateProgress(progress.processed, progress.total);
+                    let currentKey = key, currentValue = obj[key];
+                    if (isGlobalMode || targetKeys.has(key)) {
+                        if (targetType === 'key' || targetType === 'both') { currentKey = transformFunc(key); }
+                        if ((targetType === 'value' || targetType === 'both') && typeof currentValue === 'string') {
+                            if (mode === 'encode' && shouldRemoveEscapes) { try { currentValue = JSON.stringify(JSON.parse(currentValue)); } catch (e) {} }
+                            currentValue = transformFunc(currentValue);
+                        }
+                    }
+                    newObj[currentKey] = await traverseAndConvert(currentValue, options);
+                }
+                return newObj;
+            }
+            return obj;
+        }
+        async function processJSON() {
+            setControlsDisabled(true);
+            statusDiv.className = '';
+            progressContainer.style.display = 'block';
+            updateProgress(0, 1);
+            const mode = document.querySelector('input[name="transform_mode"]:checked').value;
+            const targetType = document.querySelector('input[name="target_type"]:checked').value;
+            const rawJson = jsonInput.value;
+            if (!rawJson.trim()) { showStatus('输入不能为空！', 'error'); setControlsDisabled(false); return; }
+            showStatus('正在解析JSON...', 'info');
+            await new Promise(resolve => setTimeout(resolve, 0));
+            let jsonObj;
+            try { jsonObj = JSON.parse(rawJson); } catch (e) { showStatus('JSON 格式错误: ' + e.message, 'error'); setControlsDisabled(false); return; }
+            const isGlobalMode = document.querySelector('input[name="scope"]:checked').value === 'global';
+            const targetKeys = new Set(targetKeysInput.value.split(',').map(k => k.trim()).filter(k => k));
+            if (!isGlobalMode && targetKeys.size === 0) { showStatus('指定模式下，请在配置框中指定至少一个 Key。', 'error'); setControlsDisabled(false); return; }
+            showStatus('正在计算节点总数...', 'info');
+            await new Promise(resolve => setTimeout(resolve, 0));
+            const totalKeys = countKeys(jsonObj);
+            const progress = { processed: 0, total: totalKeys };
+            updateProgress(0, totalKeys);
+            showStatus('正在转换数据...', 'info');
+            try {
+                const options = { targetKeys, mode, targetType, shouldRemoveEscapes: removeEscapesCheckbox.checked, isGlobalMode, progress };
+                const resultObj = await traverseAndConvert(jsonObj, options);
+                let outputString = JSON.stringify(resultObj, null, 4);
+                if (mode === 'encode') { outputString = outputString.replace(/\\\\u/g, '\\u'); }
+                jsonOutput.value = outputString;
+                showStatus('转换成功！', 'success');
+            } catch(e) {
+                showStatus('处理过程中发生错误: ' + e.message, 'error');
+            } finally {
+                setControlsDisabled(false);
+                progressContainer.style.display = 'none';
+            }
+        }
+
+        // === 辅助UI函数，新增 compressOutput 函数 ===
+        function clearInput() { jsonInput.value = ''; saveState(); showStatus('输入已清空。', 'info'); }
+        function clearOutput() { jsonOutput.value = ''; showStatus('输出已清空。', 'info'); }
+        async function copyOutput() {
+            if (!jsonOutput.value.trim()) { showStatus('输出为空，无法复制。', 'error'); return; }
+            try {
+                await navigator.clipboard.writeText(jsonOutput.value);
+                showStatus('已成功复制到剪贴板！', 'success');
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '已复制!';
+                setTimeout(() => { copyBtn.textContent = originalText; }, 2000);
+            } catch (err) {
+                showStatus('复制失败，您的浏览器可能不支持或未授权。', 'error');
+                console.error('Clipboard copy failed: ', err);
+            }
+        }
+
+        // 新增：压缩输出的函数
+        function compressOutput() {
+            const content = jsonOutput.value;
+            if (!content.trim()) {
+                showStatus('输出为空，无需压缩。', 'info');
+                return;
+            }
+            try {
+                const jsonObj = JSON.parse(content);
+                // 使用不带格式化参数的 stringify 方法进行压缩
+                jsonOutput.value = JSON.stringify(jsonObj);
+                showStatus('输出结果已成功压缩。', 'success');
+            } catch (e) {
+                showStatus('输出内容不是有效的JSON格式，无法压缩。', 'error');
+                console.error('Compression failed:', e);
+            }
+        }
+
+        function updateScopeUI() { const selectedScope = document.querySelector('input[name="scope"]:checked').value; targetKeysInput.disabled = (selectedScope === 'global'); if (selectedScope === 'global') targetKeysInput.value = ''; }
+        function handleFileSelect(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function(e) { jsonInput.value = e.target.result; saveState(); showStatus('文件加载成功！', 'success'); }; reader.onerror = function() { showStatus('读取文件时出错！', 'error'); }; reader.readAsText(file); event.target.value = ''; }
+        function downloadResult() { const content = jsonOutput.value; if (!content.trim()) { showStatus('输出为空，无法下载。', 'error'); return; } const blob = new Blob([content], { type: 'application/json;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `result_${new Date().getTime()}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }
+        function updateProgress(processed, total) { if (total === 0) { progressBar.style.width = '100%'; progressText.textContent = '100%'; return; }; const percentage = Math.round((processed / total) * 100); progressBar.style.width = percentage + '%'; progressText.textContent = percentage + '%'; }
+        function showStatus(message, type) { statusDiv.textContent = message; statusDiv.className = `status-${type}`; }
+        function setControlsDisabled(disabled) { document.querySelectorAll('button, input, textarea').forEach(el => { if (el.id !== 'json-output') el.disabled = disabled; }); if (!disabled) updateScopeUI(); }
+    </script>
+</body>
+</html>
