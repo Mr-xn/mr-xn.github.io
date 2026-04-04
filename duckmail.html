@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DuckMail 邮箱管理面板</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-base: #f3f4f6;
+            --bg-surface: #ffffff;
+            --text-main: #111827;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            --danger: #ef4444;
+            --success: #10b981;
+            --radius: 8px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            line-height: 1.5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--bg-surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .api-key-container {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        input[type="text"], input[type="password"] {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button.danger {
+            background-color: var(--danger);
+        }
+        button.danger:hover {
+            background-color: #dc2626;
+        }
+        button.outline {
+            background-color: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
+        button.outline:hover {
+            background-color: var(--bg-base);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Layout */
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar - Accounts */
+        .sidebar {
+            width: 300px;
+            background-color: var(--bg-surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .account-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .account-item {
+            padding: 0.75rem;
+            border-radius: var(--radius);
+            cursor: pointer;
+            margin-bottom: 0.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.15s;
+        }
+
+        .account-item:hover {
+            background-color: var(--bg-base);
+        }
+
+        .account-item.active {
+            background-color: rgba(79, 70, 229, 0.1);
+            color: var(--primary);
+        }
+
+        .account-item .address {
+            font-size: 0.875rem;
+            font-weight: 500;
+            word-break: break-all;
+        }
+
+        .account-item .delete-btn {
+            opacity: 0;
+            color: var(--danger);
+            background: none;
+            padding: 0.25rem;
+        }
+
+        .account-item:hover .delete-btn {
+            opacity: 1;
+        }
+
+        /* Middle - Inbox */
+        .inbox {
+            width: 350px;
+            background-color: var(--bg-base);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .inbox-header {
+            padding: 1rem;
+            background-color: var(--bg-surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .refresh-status {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--success);
+        }
+        .status-dot.loading {
+            background-color: #f59e0b;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        .message-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .message-item {
+            background-color: var(--bg-surface);
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            transition: box-shadow 0.15s, border-color 0.15s;
+            position: relative;
+        }
+
+        .message-item:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-color: #d1d5db;
+        }
+
+        .message-item.active {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary);
+        }
+
+        .message-item.unread::before {
+            content: '';
+            position: absolute;
+            top: 1rem;
+            left: 0.5rem;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--primary);
+        }
+
+        .message-item.unread {
+            padding-left: 1.5rem;
+        }
+
+        .msg-sender {
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .msg-subject {
+            font-size: 0.875rem;
+            color: var(--text-main);
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .msg-time {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 2rem;
+        }
+
+        /* Right - Message Reader */
+        .reader {
+            flex: 1;
+            background-color: var(--bg-surface);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .reader-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .reader-subject {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .reader-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+        }
+
+        .meta-info div {
+            margin-bottom: 0.25rem;
+        }
+
+        .meta-label {
+            color: var(--text-muted);
+            width: 50px;
+            display: inline-block;
+        }
+
+        .reader-body {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            background-color: #fafafa;
+        }
+
+        .reader-body iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .reader-body pre {
+            white-space: pre-wrap;
+            font-family: inherit;
+        }
+
+        .attachments {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border);
+            background-color: var(--bg-surface);
+        }
+
+        .attachment-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background-color: var(--bg-base);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            text-decoration: none;
+            color: var(--text-main);
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .attachment-tag:hover {
+            background-color: #e5e7eb;
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background-color: var(--bg-surface);
+            border-radius: var(--radius);
+            width: 400px;
+            max-width: 90%;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            transform: translateY(20px);
+            transition: transform 0.2s;
+        }
+
+        .modal-overlay.show .modal {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            outline: none;
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toast {
+            background-color: var(--text-main);
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.3s, fadeOut 0.3s 2.7s forwards;
+            max-width: 300px;
+            word-break: break-word;
+        }
+
+        .toast.error {
+            background-color: var(--danger);
+        }
+
+        .toast.success {
+            background-color: var(--success);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        /* Auto refresh toggle */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 36px;
+            height: 20px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+        input:checked + .slider:before {
+            transform: translateX(16px);
+        }
+        .refresh-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🦆 DuckMail Dashboard</h1>
+        <div class="api-key-container">
+            <input type="password" id="apiKeyInput" placeholder="输入 API Key (dk_...)" style="width: 250px;">
+            <button onclick="saveApiKey()">保存</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Sidebar: Accounts -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h3>邮箱账号</h3>
+                <div>
+                    <button class="outline" style="padding: 0.25rem 0.5rem; margin-right: 0.25rem;" onclick="openDataModal()" title="备份与恢复数据">💾</button>
+                    <button class="outline" style="padding: 0.25rem 0.5rem; margin-right: 0.25rem;" onclick="openLoginModal()" title="登录现有账号">登录</button>
+                    <button onclick="openCreateModal()" title="新建账号">+</button>
+                </div>
+            </div>
+            <div class="account-list" id="accountList">
+                <div class="empty-state" style="padding: 1rem; font-size: 0.875rem;">
+                    暂无账号，请新建或加载本地记录
+                </div>
+            </div>
+        </aside>
+
+        <!-- Middle: Inbox -->
+        <section class="inbox">
+            <div class="inbox-header">
+                <h3>收件箱</h3>
+                <div class="refresh-control">
+                    <span class="refresh-status" id="refreshStatus">
+                        <div class="status-dot"></div>就绪
+                    </span>
+                    <label class="switch" title="自动刷新 (每10秒)">
+                        <input type="checkbox" id="autoRefreshToggle" checked onchange="toggleAutoRefresh()">
+                        <span class="slider"></span>
+                    </label>
+                    <button class="outline" style="padding: 0.25rem 0.5rem;" onclick="fetchMessages()" title="手动刷新">↻</button>
+                </div>
+            </div>
+            <div class="message-list" id="messageList">
+                <div class="empty-state">
+                    请先在左侧选择一个邮箱账号
+                </div>
+            </div>
+        </section>
+
+        <!-- Right: Reader -->
+        <section class="reader">
+            <div id="readerContent" style="display: none; height: 100%; flex-direction: column;">
+                <div class="reader-header">
+                    <h2 class="reader-subject" id="readSubject">邮件主题</h2>
+                    <div class="reader-meta">
+                        <div class="meta-info">
+                            <div><span class="meta-label">发件人:</span> <span id="readFrom"></span></div>
+                            <div><span class="meta-label">收件人:</span> <span id="readTo"></span></div>
+                            <div><span class="meta-label">时间:</span> <span id="readDate"></span></div>
+                        </div>
+                        <div>
+                            <button class="danger" onclick="deleteCurrentMessage()">删除邮件</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="reader-body" id="readBody">
+                    <!-- Iframe for HTML, pre for Text -->
+                </div>
+                <div class="attachments" id="readAttachments" style="display: none;">
+                    <!-- Attachments -->
+                </div>
+            </div>
+            <div id="readerEmpty" class="empty-state">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">✉️</div>
+                <h3>选择一封邮件进行阅读</h3>
+            </div>
+        </section>
+    </div>
+
+    <!-- Create Account Modal -->
+    <div class="modal-overlay" id="createModal">
+        <div class="modal">
+            <div class="modal-header">新建邮箱账号</div>
+            <div class="modal-body">
+                <div class="form-group" style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                    <div style="flex: 1;">
+                        <label>用户名前缀 (>= 3 chars)</label>
+                        <input type="text" id="newUsername" placeholder="e.g. hello">
+                    </div>
+                    <button class="outline" onclick="document.getElementById('newUsername').value = generateRandomString(8)" title="随机生成" style="height: 35px; padding: 0 0.5rem;">🎲</button>
+                </div>
+                <div class="form-group">
+                    <label>域名</label>
+                    <select id="newDomain">
+                        <option value="">加载中...</option>
+                    </select>
+                </div>
+                <div class="form-group" style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                    <div style="flex: 1;">
+                        <label>密码 (>= 6 chars)</label>
+                        <input type="password" id="newPassword" placeholder="可选，留空则自动生成">
+                    </div>
+                    <button class="outline" onclick="document.getElementById('newPassword').value = generateRandomString(12)" title="随机生成" style="height: 35px; padding: 0 0.5rem;">🎲</button>
+                </div>
+                <div class="form-group">
+                    <label>有效时间</label>
+                    <select id="newExpiry">
+                        <option value="-1">永久</option>
+                        <option value="">24小时</option>
+                        <option value="3600">1小时</option>
+                        <option value="604800">7天</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="outline" onclick="closeCreateModal()">取消</button>
+                <button onclick="createAccount()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Account Modal -->
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal">
+            <div class="modal-header">登录现有账号</div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>邮箱地址</label>
+                    <input type="text" id="loginAddress" placeholder="user@domain.com">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="loginPassword" placeholder="输入密码">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="outline" onclick="closeLoginModal()">取消</button>
+                <button onclick="submitLogin()">登录</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Management Modal -->
+    <div class="modal-overlay" id="dataModal">
+        <div class="modal">
+            <div class="modal-header">数据备份与恢复</div>
+            <div class="modal-body">
+                <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    您的 API Key、邮箱账号及密码均保存在当前浏览器的本地存储中。您可以通过以下功能进行备份或在其他设备上恢复。
+                </p>
+                <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                    <button style="flex: 1; justify-content: center;" onclick="exportData()">⬇️ 导出备份 (JSON)</button>
+                </div>
+                <div style="border-top: 1px solid var(--border); padding-top: 1.5rem;">
+                    <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">恢复数据</label>
+                    <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleImportFile(event)">
+                    <button class="outline" style="width: 100%; justify-content: center;" onclick="document.getElementById('importFile').click()">⬆️ 选择备份文件导入</button>
+                    <p style="font-size: 0.75rem; color: var(--danger); margin-top: 0.5rem;">
+                        ⚠️ 导入操作将覆盖当前浏览器中的所有账号和 API Key 记录！
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="outline" onclick="closeDataModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="accountDetailsModal">
+        <div class="modal">
+            <div class="modal-header">账号信息</div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>邮箱地址</label>
+                    <input type="text" id="detailAddress" readonly style="background: #f3f4f6; cursor: text;">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="detailPassword" readonly style="background: #f3f4f6; cursor: text;">
+                        <button class="outline" onclick="copyPassword()" title="复制密码">📋</button>
+                    </div>
+                </div>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1rem;">
+                    提示：请妥善保存上述信息。如果忘记密码且未保存记录，将无法恢复该邮箱账号。
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeAccountDetailsModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toasts -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        const API_BASE = 'https://api.duckmail.sbs';
+
+        // State
+        let apiKey = localStorage.getItem('duckmail_api_key') || '';
+        // accounts format: { id, address, password, token }
+        let accounts = JSON.parse(localStorage.getItem('duckmail_accounts') || '[]');
+        let activeAccountId = null;
+        let messages = [];
+        let activeMessageId = null;
+        let domainsCache = [];
+
+        let refreshInterval = null;
+        const REFRESH_RATE = 10000; // 10 seconds
+
+        // Initialization
+        window.onload = () => {
+            if (apiKey) {
+                document.getElementById('apiKeyInput').value = apiKey;
+            }
+            renderAccounts();
+            if (accounts.length > 0) {
+                selectAccount(accounts[0].id);
+            }
+            startAutoRefresh();
+        };
+
+        // --- Core Functions ---
+
+        function getHeaders(token = null) {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            } else if (apiKey) {
+                headers['Authorization'] = `Bearer ${apiKey}`;
+            }
+            return headers;
+        }
+
+        function showToast(message, type = 'default') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                if(toast.parentElement) toast.remove();
+            }, 3000);
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            apiKey = key;
+            localStorage.setItem('duckmail_api_key', key);
+            showToast('API Key 已保存', 'success');
+            // Refresh domains if modal is open
+            fetchDomains();
+        }
+
+        // --- Accounts Management ---
+
+        function saveAccounts() {
+            localStorage.setItem('duckmail_accounts', JSON.stringify(accounts));
+            renderAccounts();
+        }
+
+        function renderAccounts() {
+            const list = document.getElementById('accountList');
+            if (accounts.length === 0) {
+                list.innerHTML = '<div class="empty-state" style="padding: 1rem; font-size: 0.875rem;">暂无账号，请新建或输入 API Key 后创建</div>';
+                return;
+            }
+
+            list.innerHTML = '';
+            accounts.forEach(acc => {
+                const div = document.createElement('div');
+                div.className = `account-item ${acc.id === activeAccountId ? 'active' : ''}`;
+                div.onclick = () => selectAccount(acc.id);
+
+                div.innerHTML = `
+                    <div class="address" title="${acc.address}">${acc.address}</div>
+                    <div style="display: flex; gap: 0.25rem;">
+                        <button class="delete-btn" style="color: var(--text-muted);" onclick="event.stopPropagation(); showAccountDetails('${acc.id}')" title="查看密码">👁️</button>
+                        <button class="delete-btn" onclick="event.stopPropagation(); deleteAccount('${acc.id}')" title="删除账号">✖</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        async function selectAccount(id) {
+            activeAccountId = id;
+            renderAccounts();
+
+            const acc = accounts.find(a => a.id === id);
+            if (!acc) return;
+
+            // Ensure we have a valid token
+            if (!acc.token) {
+                await loginAccount(acc);
+            }
+
+            document.getElementById('readerContent').style.display = 'none';
+            document.getElementById('readerEmpty').style.display = 'flex';
+
+            fetchMessages();
+        }
+
+        async function loginAccount(account) {
+            try {
+                const res = await fetch(`${API_BASE}/token`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        address: account.address,
+                        password: account.password
+                    })
+                });
+
+                if (!res.ok) throw new Error('登录失败');
+
+                const data = await res.json();
+                account.token = data.token;
+                saveAccounts();
+                return true;
+            } catch (err) {
+                showToast(`账号 ${account.address} 登录失败: ` + err.message, 'error');
+                return false;
+            }
+        }
+
+        async function fetchDomains() {
+            try {
+                const res = await fetch(`${API_BASE}/domains?page=1`, {
+                    headers: getHeaders()
+                });
+                if (!res.ok) throw new Error('无法获取域名列表');
+                const data = await res.json();
+                domainsCache = data['hydra:member'] || [];
+
+                const select = document.getElementById('newDomain');
+                select.innerHTML = '';
+                domainsCache.forEach(d => {
+                    const option = document.createElement('option');
+                    option.value = d.domain;
+                    option.textContent = d.domain + (d.ownerId ? ' (私有)' : ' (公开)');
+                    select.appendChild(option);
+                });
+            } catch (err) {
+                showToast('获取域名失败，请检查 API Key', 'error');
+                document.getElementById('newDomain').innerHTML = '<option value="">获取失败</option>';
+            }
+        }
+
+        function openCreateModal() {
+            document.getElementById('createModal').classList.add('show');
+            document.getElementById('newUsername').value = generateRandomString(8);
+            document.getElementById('newPassword').value = generateRandomString(12);
+            fetchDomains();
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').classList.remove('show');
+        }
+
+        function openLoginModal() {
+            document.getElementById('loginModal').classList.add('show');
+            document.getElementById('loginAddress').value = '';
+            document.getElementById('loginPassword').value = '';
+        }
+
+        function closeLoginModal() {
+            document.getElementById('loginModal').classList.remove('show');
+        }
+
+        async function submitLogin() {
+            const address = document.getElementById('loginAddress').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+
+            if (!address || !password) {
+                showToast('请输入邮箱地址和密码', 'error');
+                return;
+            }
+
+            // Check if already exists locally
+            if (accounts.some(a => a.address === address)) {
+                showToast('该账号已在列表中', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/token`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address, password })
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.message || '登录失败，请检查账号密码');
+                }
+
+                const data = await res.json();
+
+                // Get account ID by fetching /me
+                const meRes = await fetch(`${API_BASE}/me`, {
+                    headers: getHeaders(data.token)
+                });
+
+                if (!meRes.ok) throw new Error('无法获取账户信息');
+                const meData = await meRes.json();
+
+                accounts.push({
+                    id: meData.id,
+                    address: address,
+                    password: password,
+                    token: data.token
+                });
+
+                saveAccounts();
+                showToast(`账号 ${address} 登录成功`, 'success');
+                closeLoginModal();
+                selectAccount(meData.id);
+
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        function showAccountDetails(id) {
+            const acc = accounts.find(a => a.id === id);
+            if (!acc) return;
+
+            document.getElementById('detailAddress').value = acc.address;
+            document.getElementById('detailPassword').value = acc.password;
+            document.getElementById('accountDetailsModal').classList.add('show');
+        }
+
+        function closeAccountDetailsModal() {
+            document.getElementById('accountDetailsModal').classList.remove('show');
+        }
+
+        function copyPassword() {
+            const pwdInput = document.getElementById('detailPassword');
+            pwdInput.select();
+            pwdInput.setSelectionRange(0, 99999); // For mobile devices
+            try {
+                navigator.clipboard.writeText(pwdInput.value);
+                showToast('密码已复制到剪贴板', 'success');
+            } catch (err) {
+                // Fallback
+                document.execCommand('copy');
+                showToast('密码已复制到剪贴板', 'success');
+            }
+        }
+
+        function generateRandomString(length) {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        async function createAccount() {
+            const username = document.getElementById('newUsername').value.trim();
+            const domain = document.getElementById('newDomain').value;
+            let password = document.getElementById('newPassword').value.trim();
+            const expiry = document.getElementById('newExpiry').value;
+
+            if (!username || username.length < 3) {
+                showToast('用户名需至少3个字符', 'error');
+                return;
+            }
+            if (!domain) {
+                showToast('请选择域名', 'error');
+                return;
+            }
+            if (!password) {
+                password = generateRandomString(12);
+            }
+
+            const address = `${username}@${domain}`;
+            const payload = { address, password };
+            if (expiry !== "") {
+                payload.expiresIn = parseInt(expiry, 10);
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/accounts`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || '创建失败');
+
+                // Get initial token
+                const tokenRes = await fetch(`${API_BASE}/token`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address, password })
+                });
+
+                let token = null;
+                if (tokenRes.ok) {
+                    const tokenData = await tokenRes.json();
+                    token = tokenData.token;
+                }
+
+                accounts.push({
+                    id: data.id,
+                    address: address,
+                    password: password,
+                    token: token
+                });
+
+                saveAccounts();
+                showToast(`账号 ${address} 创建成功`, 'success');
+                closeCreateModal();
+                showAccountDetails(data.id); // 自动弹窗展示刚创建的账号密码信息
+                selectAccount(data.id);
+
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function deleteAccount(id) {
+            if (!confirm('确定要删除这个邮箱账号吗？此操作不可逆！')) return;
+
+            const acc = accounts.find(a => a.id === id);
+            if (!acc) return;
+
+            try {
+                // Ensure valid token to delete own account
+                if (!acc.token) {
+                    await loginAccount(acc);
+                }
+
+                const res = await fetch(`${API_BASE}/accounts/${acc.id}`, {
+                    method: 'DELETE',
+                    headers: getHeaders(acc.token)
+                });
+
+                if (res.ok || res.status === 404) {
+                    accounts = accounts.filter(a => a.id !== id);
+                    saveAccounts();
+                    showToast('账号已删除', 'success');
+
+                    if (activeAccountId === id) {
+                        activeAccountId = null;
+                        document.getElementById('messageList').innerHTML = '<div class="empty-state">请先在左侧选择一个邮箱账号</div>';
+                        document.getElementById('readerContent').style.display = 'none';
+                        document.getElementById('readerEmpty').style.display = 'flex';
+                        if (accounts.length > 0) {
+                            selectAccount(accounts[0].id);
+                        }
+                    }
+                } else {
+                    const data = await res.json();
+                    throw new Error(data.message || '删除失败');
+                }
+            } catch (err) {
+                showToast('删除失败: ' + err.message, 'error');
+            }
+        }
+
+        // --- Messages Management ---
+
+        function setRefreshStatus(status) {
+            const dot = document.querySelector('.status-dot');
+            const text = document.getElementById('refreshStatus');
+            if (status === 'loading') {
+                dot.classList.add('loading');
+                dot.style.backgroundColor = '#f59e0b';
+                text.innerHTML = '<div class="status-dot loading"></div>获取中...';
+            } else if (status === 'success') {
+                dot.classList.remove('loading');
+                dot.style.backgroundColor = 'var(--success)';
+                text.innerHTML = '<div class="status-dot"></div>已更新';
+            } else if (status === 'error') {
+                dot.classList.remove('loading');
+                dot.style.backgroundColor = 'var(--danger)';
+                text.innerHTML = '<div class="status-dot"></div>更新失败';
+            }
+        }
+
+        async function fetchMessages() {
+            if (!activeAccountId) return;
+            const acc = accounts.find(a => a.id === activeAccountId);
+            if (!acc || !acc.token) return;
+
+            setRefreshStatus('loading');
+
+            try {
+                const res = await fetch(`${API_BASE}/messages?page=1`, {
+                    headers: getHeaders(acc.token)
+                });
+
+                if (res.status === 401) {
+                    // Token might be expired, re-login
+                    if (await loginAccount(acc)) {
+                        return fetchMessages(); // Retry
+                    } else {
+                        throw new Error('Token 无效，请重新登录');
+                    }
+                }
+
+                if (!res.ok) throw new Error('获取邮件列表失败');
+
+                const data = await res.json();
+                messages = data['hydra:member'] || [];
+                renderMessages();
+                setRefreshStatus('success');
+            } catch (err) {
+                console.error(err);
+                setRefreshStatus('error');
+            }
+        }
+
+        function renderMessages() {
+            const list = document.getElementById('messageList');
+            if (messages.length === 0) {
+                list.innerHTML = '<div class="empty-state">收件箱为空</div>';
+                return;
+            }
+
+            list.innerHTML = '';
+            messages.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = `message-item ${msg.id === activeMessageId ? 'active' : ''} ${!msg.seen ? 'unread' : ''}`;
+                div.onclick = () => readMessage(msg.id);
+
+                const date = new Date(msg.createdAt).toLocaleString('zh-CN', {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+
+                div.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div class="msg-sender" title="${msg.from.address}">${msg.from.name || msg.from.address}</div>
+                        <div class="msg-time">${date}</div>
+                    </div>
+                    <div class="msg-subject" title="${msg.subject}">${msg.subject || '(无主题)'}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">
+                        ${msg.hasAttachments ? '📎 有附件' : ''}
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        async function readMessage(id) {
+            activeMessageId = id;
+            renderMessages(); // update active state
+
+            const acc = accounts.find(a => a.id === activeAccountId);
+            if (!acc || !acc.token) return;
+
+            document.getElementById('readerEmpty').style.display = 'none';
+            document.getElementById('readerContent').style.display = 'flex';
+
+            const bodyContainer = document.getElementById('readBody');
+            bodyContainer.innerHTML = '<div class="empty-state">加载中...</div>';
+            document.getElementById('readAttachments').style.display = 'none';
+
+            try {
+                const res = await fetch(`${API_BASE}/messages/${id}`, {
+                    headers: getHeaders(acc.token)
+                });
+
+                if (!res.ok) throw new Error('无法读取邮件内容');
+
+                const msg = await res.json();
+
+                // Update UI
+                document.getElementById('readSubject').textContent = msg.subject || '(无主题)';
+                document.getElementById('readFrom').textContent = `${msg.from.name ? msg.from.name + ' ' : ''}<${msg.from.address}>`;
+                document.getElementById('readTo').textContent = msg.to.map(t => `<${t.address}>`).join(', ');
+                document.getElementById('readDate').textContent = new Date(msg.createdAt).toLocaleString();
+
+                // Render Body
+                bodyContainer.innerHTML = '';
+                if (msg.html && msg.html.length > 0) {
+                    const iframe = document.createElement('iframe');
+                    bodyContainer.appendChild(iframe);
+
+                    // Add base target to links to open in new tab
+                    let htmlContent = msg.html[0];
+                    if (!htmlContent.includes('<base')) {
+                        htmlContent = htmlContent.replace('<head>', '<head><base target="_blank">');
+                    }
+
+                    iframe.contentWindow.document.open();
+                    iframe.contentWindow.document.write(htmlContent);
+                    iframe.contentWindow.document.close();
+                } else {
+                    const pre = document.createElement('pre');
+                    pre.textContent = msg.text || '没有内容';
+                    bodyContainer.appendChild(pre);
+                }
+
+                // Attachments
+                if (msg.hasAttachments && msg.attachments && msg.attachments.length > 0) {
+                    const attContainer = document.getElementById('readAttachments');
+                    attContainer.style.display = 'block';
+                    attContainer.innerHTML = '<strong>附件：</strong><br>';
+                    msg.attachments.forEach(att => {
+                        const a = document.createElement('a');
+                        a.href = `${API_BASE}${att.downloadUrl}`;
+                        a.className = 'attachment-tag';
+                        a.target = '_blank';
+                        a.innerHTML = `📎 ${att.filename} (${Math.round(att.size/1024)}KB)`;
+                        // Add token to url for download
+                        a.onclick = (e) => {
+                            e.preventDefault();
+                            downloadAttachment(a.href, acc.token, att.filename);
+                        };
+                        attContainer.appendChild(a);
+                    });
+                }
+
+                // Mark as read
+                if (!msg.seen) {
+                    await fetch(`${API_BASE}/messages/${id}`, {
+                        method: 'PATCH',
+                        headers: getHeaders(acc.token)
+                    });
+
+                    // Update local state
+                    const listMsg = messages.find(m => m.id === id);
+                    if (listMsg) listMsg.seen = true;
+                    renderMessages(); // Remove unread dot
+                }
+
+            } catch (err) {
+                bodyContainer.innerHTML = `<div class="empty-state" style="color: var(--danger)">${err.message}</div>`;
+            }
+        }
+
+        async function downloadAttachment(url, token, filename) {
+            try {
+                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!res.ok) throw new Error('下载失败');
+
+                const blob = await res.blob();
+                const windowUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = windowUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(windowUrl);
+            } catch(e) {
+                showToast('附件下载失败: ' + e.message, 'error');
+            }
+        }
+
+        async function deleteCurrentMessage() {
+            if (!activeMessageId || !activeAccountId) return;
+            if (!confirm('确定删除这封邮件？')) return;
+
+            const acc = accounts.find(a => a.id === activeAccountId);
+            try {
+                const res = await fetch(`${API_BASE}/messages/${activeMessageId}`, {
+                    method: 'DELETE',
+                    headers: getHeaders(acc.token)
+                });
+
+                if (res.ok || res.status === 204) {
+                    showToast('邮件已删除', 'success');
+                    document.getElementById('readerContent').style.display = 'none';
+                    document.getElementById('readerEmpty').style.display = 'flex';
+                    fetchMessages(); // refresh list
+                }
+            } catch (err) {
+                showToast('删除失败', 'error');
+            }
+        }
+
+        // --- Auto Refresh ---
+
+        function toggleAutoRefresh() {
+            const isChecked = document.getElementById('autoRefreshToggle').checked;
+            if (isChecked) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        }
+
+        function startAutoRefresh() {
+            if (refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = setInterval(() => {
+                if (activeAccountId) {
+                    fetchMessages();
+                }
+            }, REFRESH_RATE);
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const createModal = document.getElementById('createModal');
+            const loginModal = document.getElementById('loginModal');
+            const detailModal = document.getElementById('accountDetailsModal');
+            const dataModal = document.getElementById('dataModal');
+            if (event.target === createModal) closeCreateModal();
+            if (event.target === loginModal) closeLoginModal();
+            if (event.target === detailModal) closeAccountDetailsModal();
+            if (event.target === dataModal) closeDataModal();
+        }
+
+        // --- Data Backup and Restore ---
+
+        function openDataModal() {
+            document.getElementById('dataModal').classList.add('show');
+        }
+
+        function closeDataModal() {
+            document.getElementById('dataModal').classList.remove('show');
+            document.getElementById('importFile').value = ''; // Reset file input
+        }
+
+        function exportData() {
+            const exportObj = {
+                apiKey: localStorage.getItem('duckmail_api_key') || '',
+                accounts: JSON.parse(localStorage.getItem('duckmail_accounts') || '[]'),
+                exportDate: new Date().toISOString(),
+                version: '1.0'
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `duckmail_backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+
+            showToast('数据备份已导出', 'success');
+        }
+
+        function handleImportFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+
+                    if (!importedData.accounts || !Array.isArray(importedData.accounts)) {
+                        throw new Error('无效的备份文件格式');
+                    }
+
+                    // Ask for confirmation
+                    if (!confirm(`将导入 ${importedData.accounts.length} 个账号，并覆盖当前系统中的所有数据。确定继续吗？`)) {
+                        document.getElementById('importFile').value = '';
+                        return;
+                    }
+
+                    // Restore API Key
+                    if (importedData.apiKey !== undefined) {
+                        apiKey = importedData.apiKey;
+                        localStorage.setItem('duckmail_api_key', apiKey);
+                        document.getElementById('apiKeyInput').value = apiKey;
+                    }
+
+                    // Restore Accounts
+                    accounts = importedData.accounts;
+                    localStorage.setItem('duckmail_accounts', JSON.stringify(accounts));
+
+                    // Refresh UI
+                    renderAccounts();
+                    if (accounts.length > 0) {
+                        selectAccount(accounts[0].id);
+                    } else {
+                        activeAccountId = null;
+                        document.getElementById('messageList').innerHTML = '<div class="empty-state">请先在左侧选择一个邮箱账号</div>';
+                        document.getElementById('readerContent').style.display = 'none';
+                        document.getElementById('readerEmpty').style.display = 'flex';
+                    }
+
+                    showToast('数据恢复成功', 'success');
+                    closeDataModal();
+
+                    // Re-fetch domains with new API key if needed
+                    fetchDomains();
+
+                } catch (err) {
+                    showToast('导入失败: ' + err.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
