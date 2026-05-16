@@ -245,15 +245,68 @@ async function render() {
 
 document.getElementById("renderBtn").onclick = render
 
-document.getElementById("exportBtn").onclick = () => {
-  const blob = new Blob([
-    "<!DOCTYPE html>" + document.documentElement.outerHTML
-  ], { type: "text/html" })
+document.getElementById("exportBtn").onclick = async () => {
+  const status = document.getElementById("status")
+  status.textContent = "Exporting..."
 
-  const a = document.createElement("a")
-  a.href = URL.createObjectURL(blob)
-  a.download = "export.html"
-  a.click()
+  try {
+    // Clone document to avoid modifying original
+    const clone = document.documentElement.cloneNode(true)
+
+    // Remove script tags (no longer needed after render)
+    clone.querySelectorAll("script").forEach(s => s.remove())
+
+    // Remove toolbar (editor not needed in export)
+    clone.querySelector(".toolbar")?.remove()
+    clone.querySelector("#editor")?.remove()
+
+    // Inline external CSS
+    const links = clone.querySelectorAll('link[rel="stylesheet"]')
+    for (const link of links) {
+      const href = link.getAttribute("href")
+      if (!href) continue
+
+      try {
+        const resp = await fetch(href)
+        const css = await resp.text()
+        const style = document.createElement("style")
+        style.textContent = css
+        link.replaceWith(style)
+      } catch {
+        // Keep original link if fetch fails
+      }
+    }
+
+    // Generate default filename with timestamp
+    const now = new Date()
+    const ts = now.getFullYear() +
+      String(now.getMonth() + 1).padStart(2, "0") +
+      String(now.getDate()).padStart(2, "0") + "_" +
+      String(now.getHours()).padStart(2, "0") +
+      String(now.getMinutes()).padStart(2, "0") +
+      String(now.getSeconds()).padStart(2, "0")
+    const defaultName = `export_${ts}.html`
+
+    const filename = prompt("Export filename:", defaultName)
+    if (filename === null) {
+      status.textContent = "Cancelled"
+      return
+    }
+
+    const blob = new Blob([
+      "<!DOCTYPE html>\n" + clone.outerHTML
+    ], { type: "text/html;charset=utf-8" })
+
+    const a = document.createElement("a")
+    a.href = URL.createObjectURL(blob)
+    a.download = filename || defaultName
+    a.click()
+    URL.revokeObjectURL(a.href)
+
+    status.textContent = "Exported"
+  } catch (e) {
+    status.textContent = "Export failed: " + e.message
+  }
 }
 
 render()
