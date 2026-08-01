@@ -80,6 +80,7 @@
 <div class="toolbar">
   <button id="renderBtn">Render</button>
   <button id="exportBtn">Export HTML</button>
+  <button id="exportPdfBtn">Export PDF</button>
   <span id="status"></span>
 </div>
 
@@ -122,6 +123,7 @@ digraph {
   <div id="preview" class="markdown-body"></div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/dompdf.js@latest/dist/dompdf.min.js"></script>
 <script type="module">
 import MarkdownIt from "https://cdn.jsdelivr.net/npm/markdown-it@14/+esm"
 import hljs from "https://cdn.jsdelivr.net/npm/highlight.js@11/+esm"
@@ -144,6 +146,26 @@ mermaid.initialize({ startOnLoad: false })
 
 const cache = new Map()
 let viz = null
+
+// ---------- Shared helpers ----------
+function getTimestamp() {
+  const now = new Date()
+  return now.getFullYear() +
+    String(now.getMonth() + 1).padStart(2, "0") +
+    String(now.getDate()).padStart(2, "0") + "_" +
+    String(now.getHours()).padStart(2, "0") +
+    String(now.getMinutes()).padStart(2, "0") +
+    String(now.getSeconds()).padStart(2, "0")
+}
+
+function downloadBlob(blob, filename) {
+  const a = document.createElement("a")
+  a.href = URL.createObjectURL(blob)
+  a.download = filename
+  a.click()
+  // Delay revocation to ensure the browser has a chance to start the download
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000)
+}
 
 // ---------- Graphviz Stable Normalizer ----------
 function safeDecode(str) {
@@ -246,7 +268,6 @@ async function render() {
 document.getElementById("renderBtn").onclick = render
 
 document.getElementById("exportBtn").onclick = async () => {
-  const status = document.getElementById("status")
   status.textContent = "Exporting..."
 
   try {
@@ -277,16 +298,7 @@ document.getElementById("exportBtn").onclick = async () => {
       }
     }
 
-    // Generate default filename with timestamp
-    const now = new Date()
-    const ts = now.getFullYear() +
-      String(now.getMonth() + 1).padStart(2, "0") +
-      String(now.getDate()).padStart(2, "0") + "_" +
-      String(now.getHours()).padStart(2, "0") +
-      String(now.getMinutes()).padStart(2, "0") +
-      String(now.getSeconds()).padStart(2, "0")
-    const defaultName = `export_${ts}.html`
-
+    const defaultName = `export_${getTimestamp()}.html`
     const filename = prompt("Export filename:", defaultName)
     if (filename === null) {
       status.textContent = "Cancelled"
@@ -297,15 +309,46 @@ document.getElementById("exportBtn").onclick = async () => {
       "<!DOCTYPE html>\n" + clone.outerHTML
     ], { type: "text/html;charset=utf-8" })
 
-    const a = document.createElement("a")
-    a.href = URL.createObjectURL(blob)
-    a.download = filename || defaultName
-    a.click()
-    URL.revokeObjectURL(a.href)
-
+    downloadBlob(blob, filename || defaultName)
     status.textContent = "Exported"
   } catch (e) {
     status.textContent = "Export failed: " + e.message
+  }
+}
+
+document.getElementById("exportPdfBtn").onclick = async () => {
+  // Guard: ensure the library loaded and exposes the expected global
+  if (typeof window.dompdf !== "function") {
+    status.textContent = "PDF export unavailable: dompdf.js failed to load"
+    return
+  }
+
+  const defaultName = `export_${getTimestamp()}.pdf`
+  const filename = prompt("Export PDF filename:", defaultName)
+  if (filename === null) {
+    status.textContent = "Cancelled"
+    return
+  }
+
+  status.textContent = "Generating PDF..."
+
+  try {
+    const blob = await window.dompdf(preview, {
+      format: "a4",
+      pagination: true,
+      onProgress(progress) {
+        if (progress.stage === "rendering" && progress.currentPage && progress.totalPages) {
+          status.textContent = `Generating PDF: page ${progress.currentPage}/${progress.totalPages}`
+        } else if (progress.stage) {
+          status.textContent = `Generating PDF: ${progress.stage}...`
+        }
+      }
+    })
+
+    downloadBlob(blob, filename || defaultName)
+    status.textContent = "PDF exported"
+  } catch (e) {
+    status.textContent = "PDF export failed: " + e.message
   }
 }
 
