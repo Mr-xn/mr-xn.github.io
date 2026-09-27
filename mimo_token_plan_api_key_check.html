@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小米 MiMo Token Plan 密钥批量验证工具</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    min-height: 100vh; display: flex; justify-content: center; align-items: flex-start;
+    padding: 40px 20px; color: #e0e0e0;
+  }
+  .container { width: 100%; max-width: 860px; }
+  .card {
+    background: rgba(255,255,255,0.06); backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
+    padding: 36px 32px; box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+  }
+  .header { text-align: center; margin-bottom: 32px; }
+  .header .logo { font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #ff6b35, #f7c948, #ff6b35);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 6px; }
+  .header .subtitle { font-size: 13px; color: rgba(255,255,255,0.45); letter-spacing: 0.3px; }
+
+  .form-group { margin-bottom: 20px; }
+  .form-group label { display: block; font-size: 13px; color: rgba(255,255,255,0.6);
+    margin-bottom: 8px; font-weight: 500; }
+  .form-group label .hint { color: rgba(255,255,255,0.3); font-weight: 400; font-size: 12px; }
+
+  .input-wrapper { position: relative; }
+  .input-wrapper input, .input-wrapper select, .input-wrapper textarea {
+    width: 100%; padding: 13px 16px; border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05);
+    color: #fff; font-size: 14px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .input-wrapper textarea { resize: vertical; min-height: 130px; line-height: 1.7; }
+  .input-wrapper input:focus, .input-wrapper select:focus, .input-wrapper textarea:focus {
+    border-color: rgba(255,107,53,0.6);
+    box-shadow: 0 0 0 3px rgba(255,107,53,0.15);
+  }
+  .input-wrapper input::placeholder, .input-wrapper textarea::placeholder { color: rgba(255,255,255,0.25); }
+  .input-wrapper select { appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23ffffff66' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+  .input-wrapper select option { background: #302b63; color: #fff; }
+
+  .key-count { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 8px; text-align: right; }
+  .key-count strong { color: #ff9f0a; }
+
+  .btn-row { display: flex; gap: 12px; margin-top: 24px; }
+  .btn {
+    flex: 1; padding: 14px; border-radius: 12px; border: none;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-primary {
+    background: linear-gradient(135deg, #ff6b35, #ff8f65); color: #fff;
+    box-shadow: 0 6px 20px rgba(255,107,53,0.35);
+  }
+  .btn-primary:hover:not(:disabled) { box-shadow: 0 8px 28px rgba(255,107,53,0.5); }
+  .btn-secondary {
+    flex: 0 0 auto; padding: 14px 24px;
+    background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+
+  .result-area { margin-top: 28px; display: none; }
+  .result-area.show { display: block; animation: fadeIn 0.35s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* 进度条 */
+  .progress-wrap { margin-bottom: 20px; }
+  .progress-head { display: flex; justify-content: space-between; font-size: 12px;
+    color: rgba(255,255,255,0.5); margin-bottom: 8px; }
+  .progress-bar { width: 100%; height: 8px; border-radius: 100px;
+    background: rgba(255,255,255,0.08); overflow: hidden; }
+  .progress-bar .fill {
+    height: 100%; border-radius: 100px; width: 0%;
+    transition: width 0.35s cubic-bezier(0.22,1,0.36,1);
+    background: linear-gradient(90deg, #ff6b35, #f7c948);
+  }
+
+  /* 汇总卡片 — 可点击筛选 */
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
+  .summary-card {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 16px 12px; text-align: center;
+    cursor: pointer; transition: transform 0.15s, border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    user-select: none; position: relative;
+  }
+  .summary-card:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.18);
+    transform: translateY(-2px);
+  }
+  .summary-card.active {
+    border-color: rgba(255,107,53,0.7);
+    background: rgba(255,107,53,0.1);
+    box-shadow: 0 0 0 3px rgba(255,107,53,0.15);
+  }
+  .summary-card .label { font-size: 11px; color: rgba(255,255,255,0.45);
+    margin-bottom: 6px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .summary-card .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .summary-card .value.total { color: #e0e0e0; }
+  .summary-card .value.valid { color: #34c759; }
+  .summary-card .value.invalid { color: #ff3b30; }
+  .summary-card .value.other { color: #ff9f0a; }
+
+  /* 筛选状态提示 */
+  .filter-tip {
+    display: none; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; padding: 10px 16px; border-radius: 10px;
+    background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.25);
+    font-size: 12px; color: rgba(255,255,255,0.7);
+  }
+  .filter-tip.show { display: flex; }
+  .filter-tip strong { color: #ff8f65; }
+  .filter-tip .clear-filter {
+    cursor: pointer; color: rgba(255,255,255,0.5); font-size: 12px;
+    padding: 3px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.05); transition: all 0.15s;
+  }
+  .filter-tip .clear-filter:hover { color: #fff; background: rgba(255,255,255,0.12); }
+
+  /* 结果表格 */
+  .table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid rgba(255,255,255,0.08); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    background: rgba(255,255,255,0.05); padding: 12px 14px; text-align: left;
+    font-weight: 600; color: rgba(255,255,255,0.55); font-size: 12px;
+    letter-spacing: 0.3px; white-space: nowrap; position: sticky; top: 0;
+    backdrop-filter: blur(10px); z-index: 1;
+  }
+  tbody td { padding: 11px 14px; border-top: 1px solid rgba(255,255,255,0.05);
+    vertical-align: middle; white-space: nowrap; }
+  tbody tr { transition: background 0.2s; }
+  tbody tr[data-status="valid"] { background: rgba(52,199,89,0.05); }
+  tbody tr[data-status="invalid"] { background: rgba(255,59,48,0.05); }
+  tbody tr[data-status="format"] { background: rgba(255,159,10,0.05); }
+  tbody tr[data-status="error"] { background: rgba(255,159,10,0.05); }
+  tbody tr[data-status="pending"] { background: transparent; }
+  tbody tr.hidden { display: none; }
+
+  td.idx { color: rgba(255,255,255,0.3); font-variant-numeric: tabular-nums; width: 48px; }
+  td.key-cell {
+    font-family: 'SF Mono','Fira Code',monospace; color: rgba(255,255,255,0.75);
+    font-size: 12px; max-width: 260px; overflow: hidden; text-overflow: ellipsis;
+    cursor: pointer; position: relative; transition: color 0.15s;
+  }
+  td.key-cell:hover { color: #ff9f0a; }
+  td.key-cell:hover::after {
+    content: '点击复制'; position: absolute; right: 8px; top: 50%;
+    transform: translateY(-50%); font-size: 10px; font-family: sans-serif;
+    color: rgba(255,159,10,0.6); background: rgba(48,43,99,0.9);
+    padding: 2px 6px; border-radius: 4px; pointer-events: none;
+  }
+  td.time-cell, td.http-cell { font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.5); }
+  td.msg-cell { color: rgba(255,255,255,0.4); font-size: 12px;
+    max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .badge.valid { background: rgba(52,199,89,0.15); color: #34c759; }
+  .badge.invalid { background: rgba(255,59,48,0.15); color: #ff3b30; }
+  .badge.format, .badge.error { background: rgba(255,159,10,0.15); color: #ff9f0a; }
+  .badge.pending { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.4); }
+  .badge.pending::before { animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+  /* 空筛选提示 */
+  .empty-filter {
+    display: none; text-align: center; padding: 40px 20px;
+    color: rgba(255,255,255,0.35); font-size: 13px;
+  }
+  .empty-filter.show { display: block; }
+
+  /* 额度卡片 */
+  .quota-section { margin-top: 24px; }
+  .quota-title { font-size: 13px; color: rgba(255,255,255,0.55); font-weight: 600;
+    margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .quota-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .quota-card {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 18px 14px; text-align: center;
+  }
+  .quota-card .label { font-size: 11px; color: rgba(255,255,255,0.45); margin-bottom: 8px; }
+  .quota-card .value { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .quota-card .value.green { color: #34c759; }
+  .quota-card .value.orange { color: #ff9f0a; }
+  .quota-card .value.blue { color: #64d2ff; }
+  .quota-card .unit { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 4px; }
+
+  .progress-bar-wrapper { margin: 18px 0; }
+  .progress-bar-wrapper .bar-label { display: flex; justify-content: space-between;
+    font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 8px; }
+  .progress-bar .fill.warn { background: linear-gradient(90deg, #ff9f0a, #ffd60a); }
+  .progress-bar .fill.danger { background: linear-gradient(90deg, #ff3b30, #ff6b35); }
+  .progress-bar .fill.green { background: linear-gradient(90deg, #34c759, #30d158); }
+
+  .tip-box {
+    margin-top: 20px; padding: 16px; border-radius: 12px;
+    background: rgba(100,210,255,0.06); border: 1px solid rgba(100,210,255,0.12);
+    font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.7;
+  }
+  .tip-box strong { color: rgba(255,255,255,0.65); }
+  .tip-box code { background: rgba(255,255,255,0.08); padding: 1px 5px;
+    border-radius: 4px; font-size: 11px; }
+
+  .error-msg {
+    background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.25);
+    border-radius: 12px; padding: 16px; font-size: 13px; color: #ff6b63;
+    line-height: 1.6; word-break: break-all;
+  }
+
+  /* Toast 复制提示 */
+  .toast {
+    position: fixed; left: 50%; bottom: 48px; transform: translateX(-50%) translateY(20px);
+    background: rgba(52,199,89,0.95); color: #fff; padding: 12px 24px;
+    border-radius: 100px; font-size: 13px; font-weight: 600;
+    box-shadow: 0 8px 32px rgba(52,199,89,0.4);
+    opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+    z-index: 9999; display: flex; align-items: center; gap: 8px;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { background: rgba(255,59,48,0.95); box-shadow: 0 8px 32px rgba(255,59,48,0.4); }
+
+  @media (max-width: 640px) {
+    .card { padding: 24px 18px; }
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .quota-grid { grid-template-columns: repeat(2, 1fr); }
+    .btn-row { flex-direction: column; }
+    .btn-secondary { width: 100%; }
+    td.key-cell { max-width: 130px; }
+    td.msg-cell { max-width: 100px; }
+    td.key-cell:hover::after { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <div class="header">
+      <div class="logo">MiMo Token Plan</div>
+      <div class="subtitle">批量密钥验证 · 额度查询 · 点击筛选/复制</div>
+    </div>
+
+    <div class="form-group">
+      <label>API Key 列表 <span class="hint">— 每行一个，支持 tp- 开头密钥</span></label>
+      <div class="input-wrapper">
+        <textarea id="apiKeyInput" placeholder="tp-xxxxxxxxxxxxxxxxxxxxxxxx&#10;tp-yyyyyyyyyyyyyyyyyyyyyyyy&#10;tp-zzzzzzzzzzzzzzzzzzzzzzzz" spellcheck="false" autocomplete="off"></textarea>
+      </div>
+      <div class="key-count" id="keyCount">已识别 <strong>0</strong> 个密钥</div>
+    </div>
+
+    <div class="form-group">
+      <label>集群区域</label>
+      <div class="input-wrapper">
+        <select id="regionSelect">
+          <option value="cn">中国集群 (token-plan-cn.xiaomimimo.com)</option>
+          <option value="sgp">新加坡集群 (token-plan-sgp.xiaomimimo.com)</option>
+          <option value="ams">欧洲集群 (token-plan-ams.xiaomimimo.com)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>额度查询凭证（可选）<span class="hint">— 填写后可在验证完成后查询账号余额</span></label>
+      <div class="input-wrapper">
+        <input type="password" id="cookieInput" placeholder="粘贴 platform.xiaomimimo.com 的完整 Cookie" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="verifyBtn" onclick="verifyAll()">批量验证</button>
+      <button class="btn btn-secondary" onclick="clearAll()">清空</button>
+    </div>
+
+    <div class="result-area" id="resultArea"></div>
+
+    <div class="tip-box">
+      <strong>说明：</strong>Token Plan 密钥以 <code>tp-</code> 开头。验证通过 <code>POST /chat/completions</code> 发起一次最小请求，返回 <code>200/400/422/429</code> 表示密钥有效，<code>401/403</code> 表示无效。并发数限制为 3，避免触发风控。点击顶部统计卡片可筛选对应列表，点击列表中的密钥可快速复制。
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const REGION_MAP = {
+  cn:  { openai: 'https://token-plan-cn.xiaomimimo.com/v1' },
+  sgp: { openai: 'https://token-plan-sgp.xiaomimimo.com/v1' },
+  ams: { openai: 'https://token-plan-ams.xiaomimimo.com/v1' }
+};
+const DEFAULT_MODEL = 'mimo-v2.5-pro';
+const CONCURRENCY = 3;
+const TIMEOUT_MS = 20000;
+const BALANCE_API = 'https://platform.xiaomimimo.com/api/v1/balance';
+const USAGE_API   = 'https://platform.xiaomimimo.com/api/v1/tokenPlan/usage';
+
+let running = false;
+let currentFilter = 'all';   // all | valid | invalid | other
+let keyList = [];            // 当前批次的原始密钥数组（顺序与行号一致）
+
+function getEl(id) { return document.getElementById(id); }
+
+/* ============ Toast ============ */
+let toastTimer = null;
+function showToast(msg, isError) {
+  const t = getEl('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = 'toast' + (isError ? ' error' : ''); }, 1800);
+}
+
+/* ============ 输入解析 ============ */
+function parseKeys() {
+  const raw = getEl('apiKeyInput').value || '';
+  const lines = raw.split(/\r?\n/);
+  const seen = new Set();
+  const keys = [];
+  for (let line of lines) {
+    let k = line.trim().replace(/^["'`]|["'`]$/g, '').replace(/,$/, '').trim();
+    if (!k) continue;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    keys.push(k);
+  }
+  return keys;
+}
+
+function updateKeyCount() {
+  const keys = parseKeys();
+  const totalLines = (getEl('apiKeyInput').value || '').split(/\r?\n/).filter(l => l.trim()).length;
+  const dup = totalLines - keys.length;
+  getEl('keyCount').innerHTML =
+    `已识别 <strong>${keys.length}</strong> 个密钥` +
+    (dup > 0 ? ` <span style="color:rgba(255,255,255,0.3)">（已去重 ${dup} 个）</span>` : '');
+}
+getEl('apiKeyInput').addEventListener('input', updateKeyCount);
+
+/* ============ 工具函数 ============ */
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+function maskKey(key) {
+  if (!key) return '';
+  if (key.length <= 16) return key.slice(0, 4) + '****' + key.slice(-4);
+  return key.slice(0, 8) + '···' + key.slice(-6);
+}
+
+function formatNumber(n) {
+  if (n === undefined || n === null) return '—';
+  if (typeof n === 'string') n = parseFloat(n);
+  if (isNaN(n)) return '—';
+  if (Math.abs(n) >= 1e8) return (n / 1e8).toFixed(2) + '亿';
+  if (Math.abs(n) >= 1e4) return (n / 1e4).toFixed(2) + '万';
+  return n.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+}
+
+/* ============ 复制密钥 ============ */
+async function copyKey(idx) {
+  const key = keyList[idx];
+  if (!key) return;
+
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(key);
+    } else {
+      // 兼容非 HTTPS 环境
+      const ta = document.createElement('textarea');
+      ta.value = key;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    showToast('✓ 已复制：' + maskKey(key));
+  } catch (e) {
+    showToast('复制失败：' + e.message, true);
+  }
+}
+
+/* ============ 单密钥验证 ============ */
+async function verifyOne(apiKey, baseUrl) {
+  if (!/^tp-/.test(apiKey)) {
+    return {
+      key: apiKey, status: 'format', httpStatus: null,
+      elapsed: 0, message: '格式错误（非 tp- 开头）'
+    };
+  }
+
+  const chatUrl = `${baseUrl}/chat/completions`;
+  const start = performance.now();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const res = await fetch(chatUrl, {
+      method: 'POST',
+      headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: DEFAULT_MODEL,
+        messages: [{ role: 'user', content: 'hi' }],
+        max_completion_tokens: 1,
+        stream: false
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    const elapsed = (performance.now() - start) / 1000;
+    const status = res.status;
+
+    if (status === 401 || status === 403) {
+      return { key: apiKey, status: 'invalid', httpStatus: status, elapsed, message: '认证失败' };
+    }
+    if (status === 429) {
+      return { key: apiKey, status: 'valid', httpStatus: status, elapsed, message: '限流（密钥有效）' };
+    }
+    return { key: apiKey, status: 'valid', httpStatus: status, elapsed, message: 'OK' };
+
+  } catch (err) {
+    clearTimeout(timer);
+    const elapsed = (performance.now() - start) / 1000;
+    return {
+      key: apiKey, status: 'error', httpStatus: null, elapsed,
+      message: err.name === 'AbortError' ? '请求超时' : (err.message || '网络错误')
+    };
+  }
+}
+
+/* ============ 并发池 ============ */
+async function runPool(items, worker, limit, onProgress) {
+  let cursor = 0, finished = 0;
+  const results = new Array(items.length);
+
+  async function runner() {
+    while (true) {
+      const i = cursor++;
+      if (i >= items.length) return;
+      try { results[i] = await worker(items[i], i); }
+      catch (e) { results[i] = { error: e }; }
+      finished++;
+      if (onProgress) onProgress(finished, items.length, results[i], i);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runner));
+  return results;
+}
+
+/* ============ 表格渲染 ============ */
+function renderTable(keys) {
+  const rows = keys.map((k, i) => `
+    <tr id="row-${i}" data-status="pending">
+      <td class="idx">${i + 1}</td>
+      <td class="key-cell" title="${escapeHtml(k)}" onclick="copyKey(${i})">${escapeHtml(maskKey(k))}</td>
+      <td class="status-cell"><span class="badge pending">等待中</span></td>
+      <td class="http-cell">—</td>
+      <td class="time-cell">—</td>
+      <td class="msg-cell">—</td>
+    </tr>
+  `).join('');
+
+  return `
+    <div class="filter-tip" id="filterTip">
+      <span>正在筛选：<strong id="filterLabel">全部</strong> <span id="filterCount"></span></span>
+      <span class="clear-filter" onclick="setFilter('all')">显示全部</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>密钥（点击复制）</th>
+            <th>状态</th>
+            <th>HTTP</th>
+            <th>耗时</th>
+            <th>备注</th>
+          </tr>
+        </thead>
+        <tbody id="resultBody">${rows}</tbody>
+      </table>
+      <div class="empty-filter" id="emptyFilter">当前筛选条件下暂无数据</div>
+    </div>
+  `;
+}
+
+function updateRow(i, r) {
+  const row = getEl('row-' + i);
+  if (!row) return;
+  row.dataset.status = r.status;
+
+  const badgeMap = {
+    valid:   '<span class="badge valid">有效</span>',
+    invalid: '<span class="badge invalid">无效</span>',
+    format:  '<span class="badge format">格式错误</span>',
+    error:   '<span class="badge error">失败</span>',
+    pending: '<span class="badge pending">等待中</span>'
+  };
+
+  row.children[2].innerHTML = badgeMap[r.status] || badgeMap.pending;
+  row.children[3].textContent = (r.httpStatus !== null && r.httpStatus !== undefined) ? r.httpStatus : '—';
+  row.children[4].textContent = (r.elapsed && r.elapsed > 0) ? r.elapsed.toFixed(2) + 's' : '—';
+  row.children[5].textContent = r.message || '—';
+}
+
+/* ============ 筛选逻辑 ============ */
+function setFilter(type) {
+  currentFilter = type;
+
+  // 更新卡片激活态
+  ['all', 'valid', 'invalid', 'other'].forEach(t => {
+    const card = getEl('summary-' + t);
+    if (card) card.classList.toggle('active', t === type);
+  });
+
+  // 显示/隐藏行
+  const rows = document.querySelectorAll('#resultBody tr');
+  let visible = 0;
+  rows.forEach(row => {
+    const st = row.dataset.status;
+    let match = false;
+    if (type === 'all') match = true;
+    else if (type === 'valid') match = (st === 'valid');
+    else if (type === 'invalid') match = (st === 'invalid');
+    else if (type === 'other') match = (st === 'format' || st === 'error' || st === 'pending' === false && st !== 'valid' && st !== 'invalid');
+    // 修正 other：format / error
+    if (type === 'other') match = (st === 'format' || st === 'error');
+    row.classList.toggle('hidden', !match);
+    if (match) visible++;
+  });
+
+  // 更新筛选提示条
+  const tip = getEl('filterTip');
+  const label = getEl('filterLabel');
+  const countEl = getEl('filterCount');
+  if (tip && label) {
+    if (type === 'all') {
+      tip.classList.remove('show');
+    } else {
+      const nameMap = { valid: '有效', invalid: '无效', other: '其他' };
+      label.textContent = nameMap[type] || type;
+      if (countEl) countEl.textContent = `（${visible} 条）`;
+      tip.classList.add('show');
+    }
+  }
+
+  // 空状态
+  const empty = getEl('emptyFilter');
+  if (empty) empty.classList.toggle('show', visible === 0);
+}
+
+/* ============ 主流程 ============ */
+async function verifyAll() {
+  if (running) return;
+
+  const keys = parseKeys();
+  const region = getEl('regionSelect').value;
+  const cookie = getEl('cookieInput').value.trim();
+  const resultArea = getEl('resultArea');
+  const btn = getEl('verifyBtn');
+
+  if (keys.length === 0) { alert('请至少输入一个 API Key'); return; }
+
+  running = true;
+  btn.disabled = true;
+  btn.textContent = '验证中...';
+  currentFilter = 'all';
+  keyList = keys;   // 保存供复制使用
+
+  const baseUrl = REGION_MAP[region].openai;
+
+  resultArea.className = 'result-area show';
+  resultArea.innerHTML = `
+    <div class="progress-wrap">
+      <div class="progress-head">
+        <span>验证进度</span>
+        <span id="progressText">0 / ${keys.length}</span>
+      </div>
+      <div class="progress-bar">
+        <div class="fill" id="progressFill" style="width:0%"></div>
+      </div>
+    </div>
+    <div class="summary-grid">
+      <div class="summary-card active" id="summary-all" onclick="setFilter('all')">
+        <div class="label">总计</div><div class="value total" id="sumTotal">${keys.length}</div>
+      </div>
+      <div class="summary-card" id="summary-valid" onclick="setFilter('valid')">
+        <div class="label">有效</div><div class="value valid" id="sumValid">0</div>
+      </div>
+      <div class="summary-card" id="summary-invalid" onclick="setFilter('invalid')">
+        <div class="label">无效</div><div class="value invalid" id="sumInvalid">0</div>
+      </div>
+      <div class="summary-card" id="summary-other" onclick="setFilter('other')">
+        <div class="label">其他</div><div class="value other" id="sumOther">0</div>
+      </div>
+    </div>
+    <div id="tableContainer">${renderTable(keys)}</div>
+    <div id="quotaContainer"></div>
+  `;
+
+  const counter = { valid: 0, invalid: 0, other: 0 };
+
+  await runPool(
+    keys,
+    (key) => verifyOne(key, baseUrl),
+    CONCURRENCY,
+    (done, total, result, idx) => {
+      updateRow(idx, result);
+
+      if (result.status === 'valid') counter.valid++;
+      else if (result.status === 'invalid') counter.invalid++;
+      else counter.other++;
+
+      const fill = getEl('progressFill');
+      if (fill) fill.style.width = (done / total) * 100 + '%';
+      const ptext = getEl('progressText');
+      if (ptext) ptext.textContent = `${done} / ${total}`;
+
+      getEl('sumValid').textContent = counter.valid;
+      getEl('sumInvalid').textContent = counter.invalid;
+      getEl('sumOther').textContent = counter.other;
+
+      // 若处于筛选态，实时保持筛选一致
+      if (currentFilter !== 'all') setFilter(currentFilter);
+    }
+  );
+
+  btn.disabled = false;
+  btn.textContent = '批量验证';
+  running = false;
+
+  const ptext = getEl('progressText');
+  if (ptext) ptext.textContent = `${keys.length} / ${keys.length} 完成`;
+
+  // 额度查询
+  if (cookie) {
+    await fetchQuota(cookie, region);
+  } else {
+    const qc = getEl('quotaContainer');
+    if (qc) {
+      qc.innerHTML = `
+        <div class="tip-box">
+          💡 填写控制台 Cookie 后可查询账号剩余额度（小米暂未提供基于 API Key 的余额接口）。
+        </div>
+      `;
+    }
+  }
+}
+
+/* ============ 额度查询 ============ */
+async function fetchQuota(cookie, region) {
+  const qc = getEl('quotaContainer');
+  if (!qc) return;
+
+  qc.innerHTML = `<div class="quota-section"><div class="quota-title">⏳ 正在查询额度...</div></div>`;
+
+  const headers = { 'Accept': 'application/json', 'Cookie': cookie };
+
+  try {
+    const balanceRes = await fetch(BALANCE_API, { headers });
+    const balanceData = await balanceRes.json();
+
+    let usageData = null;
+    try {
+      const usageRes = await fetch(USAGE_API, { headers });
+      usageData = await usageRes.json();
+    } catch (e) {}
+
+    let html = '<div class="quota-section"><div class="quota-title">💰 账号额度</div>';
+
+    if (balanceData && balanceData.code === 0 && balanceData.data) {
+      const d = balanceData.data;
+      const currency = d.currency || 'CNY';
+      html += `
+        <div class="quota-grid">
+          <div class="quota-card"><div class="label">总余额</div>
+            <div class="value blue">${formatNumber(d.balance)}</div><div class="unit">${currency}</div></div>
+          <div class="quota-card"><div class="label">现金余额</div>
+            <div class="value green">${formatNumber(d.cashBalance)}</div><div class="unit">${currency}</div></div>
+          <div class="quota-card"><div class="label">赠送余额</div>
+            <div class="value orange">${formatNumber(d.giftBalance)}</div><div class="unit">${currency}</div></div>
+          <div class="quota-card"><div class="label">冻结金额</div>
+            <div class="value">${formatNumber(d.frozenAmount || 0)}</div><div class="unit">${currency}</div></div>
+        </div>
+      `;
+    } else {
+      html += `<div class="error-msg">余额接口返回异常：${escapeHtml(JSON.stringify(balanceData || {}).slice(0, 200))}</div>`;
+    }
+
+    if (usageData && usageData.code === 0 && usageData.data) {
+      const u = usageData.data;
+      const total = Number(u.totalCredits ?? u.total ?? 0);
+      const used = Number(u.usedCredits ?? u.used ?? 0);
+      const remaining = Number(u.remainingCredits ?? u.remaining ?? (total - used));
+      const percent = total > 0 ? Math.min((used / total) * 100, 100) : 0;
+      const cls = percent > 90 ? 'danger' : percent > 70 ? 'warn' : 'green';
+
+      html += `
+        <div class="progress-bar-wrapper">
+          <div class="bar-label"><span>Token Plan 用量</span><span>${percent.toFixed(1)}%</span></div>
+          <div class="progress-bar"><div class="fill ${cls}" style="width:${percent}%"></div></div>
+        </div>
+        <div class="quota-grid">
+          <div class="quota-card"><div class="label">已用积分</div><div class="value orange">${formatNumber(used)}</div></div>
+          <div class="quota-card"><div class="label">剩余积分</div>
+            <div class="value ${percent > 90 ? 'orange' : 'green'}">${formatNumber(remaining)}</div></div>
+          <div class="quota-card"><div class="label">总额度</div><div class="value blue">${formatNumber(total)}</div></div>
+          <div class="quota-card"><div class="label">套餐状态</div>
+            <div class="value" style="font-size:15px;padding-top:4px">${escapeHtml(u.status || '正常')}</div></div>
+        </div>
+      `;
+    }
+
+    html += `<div class="tip-box">Cookie 有效期一般为 24 小时，若查询失败请重新登录 platform.xiaomimimo.com 获取。</div></div>`;
+    qc.innerHTML = html;
+
+  } catch (err) {
+    qc.innerHTML = `
+      <div class="quota-section">
+        <div class="error-msg">
+          <strong>额度查询失败</strong><br>${escapeHtml(err.message)}<br><br>
+          请确认 Cookie 完整且未过期。获取方式：登录 platform.xiaomimimo.com → F12 开发者工具 → Network → 任选一个请求 → 复制请求头中的完整 Cookie 值。
+        </div>
+      </div>
+    `;
+  }
+}
+
+/* ============ 清空 ============ */
+function clearAll() {
+  if (running) return;
+  getEl('apiKeyInput').value = '';
+  getEl('cookieInput').value = '';
+  getEl('regionSelect').value = 'cn';
+  getEl('resultArea').className = 'result-area';
+  getEl('resultArea').innerHTML = '';
+  currentFilter = 'all';
+  keyList = [];
+  updateKeyCount();
+}
+
+/* 快捷键 Ctrl/Cmd + Enter */
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    verifyAll();
+  }
+});
+
+updateKeyCount();
+</script>
+</body>
+</html>
