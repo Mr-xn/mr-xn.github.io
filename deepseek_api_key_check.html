@@ -12,7 +12,7 @@
     min-height: 100vh; display: flex; justify-content: center; align-items: flex-start;
     padding: 40px 20px; color: #e0e0e0;
   }
-  .container { width: 100%; max-width: 860px; }
+  .container { width: 100%; max-width: 880px; }
   .card {
     background: rgba(255,255,255,0.05); backdrop-filter: blur(20px);
     border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
@@ -87,7 +87,7 @@
     background: linear-gradient(90deg, #4d6bfe, #7b9aff);
   }
 
-  /* 汇总卡片 — 可点击筛选 */
+  /* 汇总卡片 */
   .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
   .summary-card {
     background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
@@ -128,6 +128,25 @@
     background: rgba(255,255,255,0.05); transition: all 0.15s;
   }
   .filter-tip .clear-filter:hover { color: #fff; background: rgba(255,255,255,0.12); }
+
+  /* 导出栏 */
+  .export-bar {
+    display: flex; align-items: center; gap: 8px;
+    flex-wrap: wrap; margin-bottom: 14px;
+    padding: 10px 14px; border-radius: 10px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+  }
+  .export-label { font-size: 12px; color: rgba(255,255,255,0.4); margin-right: 2px; }
+  .export-btn {
+    padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(77,107,254,0.3);
+    background: rgba(77,107,254,0.1); color: #7b9aff; font-size: 12px;
+    font-weight: 500; cursor: pointer; transition: all 0.15s; font-family: inherit;
+    white-space: nowrap;
+  }
+  .export-btn:hover { background: rgba(77,107,254,0.2); border-color: rgba(77,107,254,0.5); color: #a3b8ff; }
+  .export-btn:active { transform: scale(0.96); }
+  .export-btn.txt { border-color: rgba(52,199,89,0.3); background: rgba(52,199,89,0.1); color: #34c759; }
+  .export-btn.txt:hover { background: rgba(52,199,89,0.2); border-color: rgba(52,199,89,0.5); color: #5ee07a; }
 
   /* 结果表格 */
   .table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid rgba(255,255,255,0.08); }
@@ -178,7 +197,6 @@
   .badge.pending::before { animation: pulse 1s infinite; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
 
-  /* 空筛选提示 */
   .empty-filter {
     display: none; text-align: center; padding: 40px 20px;
     color: rgba(255,255,255,0.35); font-size: 13px;
@@ -217,7 +235,7 @@
     line-height: 1.6; word-break: break-all;
   }
 
-  /* Toast 复制提示 */
+  /* Toast */
   .toast {
     position: fixed; left: 50%; bottom: 48px; transform: translateX(-50%) translateY(20px);
     background: rgba(52,199,89,0.95); color: #fff; padding: 12px 24px;
@@ -238,6 +256,8 @@
     td.key-cell { max-width: 130px; }
     td.msg-cell { max-width: 100px; }
     td.key-cell:hover::after { display: none; }
+    .export-bar { gap: 6px; }
+    .export-btn { padding: 5px 10px; font-size: 11px; }
   }
 </style>
 </head>
@@ -246,7 +266,7 @@
   <div class="card">
     <div class="header">
       <div class="logo">DeepSeek API</div>
-      <div class="subtitle">批量密钥验证 · 余额查询 · 点击筛选/复制</div>
+      <div class="subtitle">批量密钥验证 · 余额查询 · 筛选/复制/导出</div>
     </div>
 
     <div class="form-group">
@@ -275,7 +295,7 @@
     <div class="result-area" id="resultArea"></div>
 
     <div class="tip-box">
-      <strong>说明：</strong>DeepSeek API Key 以 <code>sk-</code> 开头，长度 32 位。验证通过 <code>POST https://api.deepseek.com/chat/completions</code> 发起一次最小请求，返回 <code>200</code> 表示密钥有效，<code>401</code> 表示无效，<code>402</code> 表示余额不足（密钥有效）。验证通过后自动查询余额（<code>GET /user/balance</code>），无需额外 Cookie。并发数限制为 3，避免触发风控。
+      <strong>说明：</strong>DeepSeek API Key 以 <code>sk-</code> 开头。验证通过 <code>POST /chat/completions</code> 发起一次最小请求，<code>200</code> 有效，<code>401/403</code> 无效，<code>402</code> 余额不足（密钥有效）。验证后自动查询余额。点击统计卡片可筛选列表，点击密钥可复制，导出按钮支持导出全部或当前筛选结果。
     </div>
   </div>
 </div>
@@ -374,9 +394,106 @@ async function copyKey(idx) {
   }
 }
 
+/* ============ 导出功能 ============ */
+function timestamp() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+function csvEscape(v) {
+  if (v === null || v === undefined) return '';
+  const s = String(v);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function download(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// 收集表格数据
+function collectRows(onlyFiltered) {
+  const rows = [];
+  const trs = document.querySelectorAll('#resultBody tr');
+  trs.forEach(tr => {
+    if (onlyFiltered && tr.classList.contains('hidden')) return;
+    const idx = parseInt(tr.children[0].textContent, 10);
+    const key = keyList[idx - 1] || '';
+    const badgeEl = tr.children[2].querySelector('.badge');
+    const status = badgeEl ? badgeEl.textContent.trim() : '';
+    const http = tr.children[3].textContent.trim();
+    const time = tr.children[4].textContent.trim();
+    const msg = tr.children[5].textContent.trim();
+    rows.push({ idx, key, status, http, time, msg });
+  });
+  return rows;
+}
+
+// 导出 CSV
+function exportCSV(onlyFiltered) {
+  const rows = collectRows(onlyFiltered);
+  if (rows.length === 0) { showToast('没有可导出的数据', true); return; }
+
+  const header = ['序号', '密钥', '状态', 'HTTP状态码', '耗时', '备注'];
+  const lines = [header.map(csvEscape).join(',')];
+  rows.forEach(r => {
+    lines.push([r.idx, r.key, r.status, r.http, r.time, r.msg].map(csvEscape).join(','));
+  });
+
+  const csv = '\uFEFF' + lines.join('\r\n');
+  const suffix = onlyFiltered && currentFilter !== 'all' ? '_' + currentFilter : '_all';
+  const filename = `deepseek_keys${suffix}_${timestamp()}.csv`;
+  download(filename, csv, 'text/csv;charset=utf-8');
+  showToast(`✓ 已导出 ${rows.length} 条记录`);
+}
+
+// 导出纯密钥 TXT（每行一个）
+function exportKeysTXT(onlyFiltered) {
+  const rows = collectRows(onlyFiltered);
+  if (rows.length === 0) { showToast('没有可导出的数据', true); return; }
+
+  const content = rows.map(r => r.key).join('\n');
+  const suffix = onlyFiltered && currentFilter !== 'all' ? '_' + currentFilter : '_all';
+  const filename = `deepseek_keys${suffix}_${timestamp()}.txt`;
+  download(filename, content, 'text/plain;charset=utf-8');
+  showToast(`✓ 已导出 ${rows.length} 个密钥`);
+}
+
+// 导出分组 TXT（按状态分组）
+function exportGroupedTXT() {
+  const rows = collectRows(false);
+  if (rows.length === 0) { showToast('没有可导出的数据', true); return; }
+
+  const groups = { '有效': [], '无效': [], '格式错误': [], '失败': [], '等待中': [] };
+  rows.forEach(r => {
+    if (groups[r.status]) groups[r.status].push(r.key);
+    else groups['失败'].push(r.key);
+  });
+
+  let content = '';
+  Object.keys(groups).forEach(name => {
+    if (groups[name].length > 0) {
+      content += `# ${name} (${groups[name].length})\n`;
+      content += groups[name].join('\n') + '\n\n';
+    }
+  });
+
+  const filename = `deepseek_keys_grouped_${timestamp()}.txt`;
+  download(filename, content, 'text/plain;charset=utf-8');
+  showToast(`✓ 已导出分组密钥`);
+}
+
 /* ============ 单密钥验证 ============ */
 async function verifyOne(apiKey, model) {
-  // 格式检查：sk- 开头
   if (!/^sk-/.test(apiKey)) {
     return {
       key: apiKey, status: 'format', httpStatus: null,
@@ -466,6 +583,13 @@ function renderTable(keys) {
     <div class="filter-tip" id="filterTip">
       <span>正在筛选：<strong id="filterLabel">全部</strong> <span id="filterCount"></span></span>
       <span class="clear-filter" onclick="setFilter('all')">显示全部</span>
+    </div>
+    <div class="export-bar">
+      <span class="export-label">导出：</span>
+      <button class="export-btn" onclick="exportCSV(false)">全部结果 CSV</button>
+      <button class="export-btn" onclick="exportCSV(true)">当前筛选 CSV</button>
+      <button class="export-btn txt" onclick="exportKeysTXT(true)">当前筛选密钥 TXT</button>
+      <button class="export-btn txt" onclick="exportGroupedTXT()">分组密钥 TXT</button>
     </div>
     <div class="table-wrap">
       <table>
@@ -624,7 +748,7 @@ async function verifyAll() {
   const ptext = getEl('progressText');
   if (ptext) ptext.textContent = `${keys.length} / ${keys.length} 完成`;
 
-  // 余额查询：使用第一个有效的密钥
+  // 余额查询
   const validKey = keyList.find((_, i) => {
     const row = getEl('row-' + i);
     return row && row.dataset.status === 'valid';
@@ -634,9 +758,7 @@ async function verifyAll() {
     await fetchBalance(validKey);
   } else {
     const qc = getEl('quotaContainer');
-    if (qc) {
-      qc.innerHTML = `<div class="tip-box">💡 未检测到有效密钥，无法查询余额。</div>`;
-    }
+    if (qc) qc.innerHTML = `<div class="tip-box">💡 未检测到有效密钥，无法查询余额。</div>`;
   }
 }
 
@@ -650,18 +772,12 @@ async function fetchBalance(apiKey) {
   try {
     const res = await fetch(`${BASE_URL}/user/balance`, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      }
+      headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${apiKey}` }
     });
 
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = await res.json();
-
     let html = '<div class="quota-section"><div class="quota-title">💰 账号余额</div>';
 
     if (data.balance_infos && data.balance_infos.length > 0) {
@@ -674,34 +790,23 @@ async function fetchBalance(apiKey) {
 
       html += `
         <div class="quota-grid">
-          <div class="quota-card">
-            <div class="label">总余额</div>
+          <div class="quota-card"><div class="label">总余额</div>
             <div class="value ${available ? 'blue' : 'red'}">${formatNumber(total)}</div>
-            <div class="unit">${currency}</div>
-          </div>
-          <div class="quota-card">
-            <div class="label">充值余额</div>
-            <div class="value green">${formatNumber(topped)}</div>
-            <div class="unit">${currency}</div>
-          </div>
-          <div class="quota-card">
-            <div class="label">赠送余额</div>
-            <div class="value orange">${formatNumber(granted)}</div>
-            <div class="unit">${currency}</div>
-          </div>
-          <div class="quota-card">
-            <div class="label">可用状态</div>
+            <div class="unit">${currency}</div></div>
+          <div class="quota-card"><div class="label">充值余额</div>
+            <div class="value green">${formatNumber(topped)}</div><div class="unit">${currency}</div></div>
+          <div class="quota-card"><div class="label">赠送余额</div>
+            <div class="value orange">${formatNumber(granted)}</div><div class="unit">${currency}</div></div>
+          <div class="quota-card"><div class="label">可用状态</div>
             <div class="value ${available ? 'green' : 'red'}" style="font-size:16px;padding-top:2px">
-              ${available ? '✅ 可用' : '⛔ 不可用'}
-            </div>
-          </div>
+              ${available ? '✅ 可用' : '⛔ 不可用'}</div></div>
         </div>
       `;
     } else {
       html += `<div class="error-msg">余额接口返回数据格式异常。</div>`;
     }
 
-    html += `<div class="tip-box">余额数据来自 DeepSeek 官方 <code>GET /user/balance</code> 接口，直接使用 API Key 认证，无需额外 Cookie。余额实时反映账户状态。</div></div>`;
+    html += `<div class="tip-box">余额数据来自 DeepSeek 官方 <code>GET /user/balance</code> 接口，直接使用 API Key 认证。展示的是第一个有效密钥对应账号的余额。</div></div>`;
     qc.innerHTML = html;
 
   } catch (err) {
